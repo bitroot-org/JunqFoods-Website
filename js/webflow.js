@@ -17453,6 +17453,9 @@ Webflow.define('scroll', module.exports = function ($) {
    */
 
   var localHrefSelector = 'a[href*="#"]:not(.w-tab-link):not(' + emptyHrefSelector + ')';
+  var scrollTargetOutlineCSS = '.wf-force-outline-none[tabindex="-1"]:focus{outline:none;}';
+  var focusStylesEl = document.createElement('style');
+  focusStylesEl.appendChild(document.createTextNode(scrollTargetOutlineCSS));
 
   function inIframe() {
     try {
@@ -17482,6 +17485,37 @@ Webflow.define('scroll', module.exports = function ($) {
 
   function reducedMotionEnabled() {
     return document.body.getAttribute('data-wf-scroll-motion') === 'none' || reducedMotionMediaQuery.matches;
+  }
+
+  function setFocusable($el, action) {
+    var initialTabindex;
+
+    switch (action) {
+      case 'add':
+        initialTabindex = $el.attr('tabindex');
+
+        if (initialTabindex) {
+          $el.attr('data-wf-tabindex-swap', initialTabindex);
+        } else {
+          $el.attr('tabindex', '-1');
+        }
+
+        break;
+
+      case 'remove':
+        initialTabindex = $el.attr('data-wf-tabindex-swap');
+
+        if (initialTabindex) {
+          $el.attr('tabindex', initialTabindex);
+          $el.removeAttr('data-wf-tabindex-swap');
+        } else {
+          $el.removeAttr('tabindex');
+        }
+
+        break;
+    }
+
+    $el.toggleClass('wf-force-outline-none', action === 'add');
   }
   /**
    * Determine if we should execute custom scroll
@@ -17513,6 +17547,9 @@ Webflow.define('scroll', module.exports = function ($) {
     updateHistory(hash, evt);
     window.setTimeout(function () {
       scroll($el);
+      setFocusable($el, 'add');
+      $el.focus();
+      setFocusable($el, 'remove');
     }, evt ? 0 : 300);
   }
 
@@ -17607,6 +17644,7 @@ Webflow.define('scroll', module.exports = function ($) {
     $doc.on(WF_CLICK_EMPTY, emptyHrefSelector, function (e) {
       e.preventDefault();
     });
+    document.head.insertBefore(focusStylesEl, document.head.firstChild);
   } // Export module
 
 
@@ -17987,6 +18025,27 @@ Webflow.define('forms', module.exports = function ($, _) {
       result[name] = value;
     });
     return result;
+  }
+
+  var trackingCookieNameMap = {
+    _mkto_trk: 'marketo' // __hstc: 'hubspot',
+
+  };
+
+  function collectEnterpriseTrackingCookies() {
+    var cookies = document.cookie.split('; ').reduce(function (acc, cookie) {
+      var splitCookie = cookie.split('=');
+      var name = splitCookie[0];
+
+      if (name in trackingCookieNameMap) {
+        var mappedName = trackingCookieNameMap[name];
+        var value = splitCookie.slice(1).join('=');
+        acc[mappedName] = value;
+      }
+
+      return acc;
+    }, {});
+    return cookies;
   }
 
   function getStatus(field, type, name, value) {
