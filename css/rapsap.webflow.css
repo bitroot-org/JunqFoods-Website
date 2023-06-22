@@ -1284,6 +1284,7 @@ p {
   flex: 1;
   color: #1d4355;
   text-align: left;
+  margin-bottom: 10px;
 }
 
 .columns {
